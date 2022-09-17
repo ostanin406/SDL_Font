@@ -6,6 +6,19 @@
 #define DEFAULT_HEIGHT 600
 #define MINWINDOW 640, 480
 
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+#define SDL_RMASK 0xFF000000
+#define SDL_GMASK 0x00FF0000
+#define SDL_BMASK 0x0000FF00
+#define SDL_AMASK 0x000000FF
+#else
+#define SDL_RMASK 0x000000FF
+#define SDL_GMASK 0x0000FF00
+#define SDL_BMASK 0x00FF0000
+#define SDL_AMASK 0xFF000000
+#endif
+#define SDL_RGBAMASK SDL_RMASK, SDL_GMASK, SDL_BMASK, SDL_AMASK
+
 static short Width = DEFAULT_WIDTH;
 static short Height = DEFAULT_HEIGHT;
 TTF_Font* Font;
@@ -48,13 +61,9 @@ static void SDL_GL_Leave2DMode()
 
 #pragma warning(push)
 #pragma warning(disable:26812)
-static GLuint SDL_GL_LoadTexture(SDL_Surface* surface, SDL_FRect& rect)
+static GLuint SDL_GL_LoadTexture(SDL_Surface* surface)
 {
-    int w = 1; while (w < surface->w) w <<= 1;
-    int h = 1; while (h < surface->h) h <<= 1;
-    rect = { 0.0F, 0.0F, (GLfloat)surface->w / w, (GLfloat)surface->h / h };
-
-    SDL_Surface* image = SDL_CreateRGBSurface(0, w, h, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+    SDL_Surface* image = SDL_CreateRGBSurface(0, surface->w, surface->h, 32, SDL_RGBAMASK);
     if (image == NULL) return 0;
 
     Uint8 alpha;
@@ -76,7 +85,7 @@ static GLuint SDL_GL_LoadTexture(SDL_Surface* surface, SDL_FRect& rect)
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image->pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface->w, surface->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image->pixels);
 
     SDL_FreeSurface(image);
     return texture;
@@ -105,18 +114,17 @@ SDL_Point SDL_RenderText(TTF_Font* font, const wchar_t* text, SDL_Point point, S
     if (surface == NULL) return point;
 
     SDL_Rect rect = { point.x, point.y, point.x + surface->w, point.y + surface->h };
-    SDL_FRect vertex;
 
-    GLuint texture = SDL_GL_LoadTexture(surface, vertex);
+    GLuint texture = SDL_GL_LoadTexture(surface);
     SDL_FreeSurface(surface);
 
     glBindTexture(GL_TEXTURE_2D, texture);
 
     glBegin(GL_QUADS);
-    glTexCoord2f(vertex.x, vertex.y); glVertex2i(rect.x, rect.y);
-    glTexCoord2f(vertex.x, vertex.h); glVertex2i(rect.x, rect.h);
-    glTexCoord2f(vertex.w, vertex.h); glVertex2i(rect.w, rect.h);
-    glTexCoord2f(vertex.w, vertex.y); glVertex2i(rect.w, rect.y);
+    glTexCoord2i(0, 0); glVertex2i(rect.x, rect.y);
+    glTexCoord2i(0, 1); glVertex2i(rect.x, rect.h);
+    glTexCoord2i(1, 1); glVertex2i(rect.w, rect.h);
+    glTexCoord2i(1, 0); glVertex2i(rect.w, rect.y);
     glEnd();
 
     return SDL_Point{ rect.w, rect.h };
@@ -132,7 +140,7 @@ void Display(float dt)
     SDL_Point point = { 100, 100 };
     point = SDL_RenderText(Font, L"Text", point, SDL_Color{ 255, 0, 0, 0 });
     point.y = 100;
-    SDL_RenderText(Font, L"“ÂÍÒÚ", point, SDL_Color{ 0, 255, 255, 0 });
+    SDL_RenderText(Font, L"–¢–µ–∫—Å—Ç", point, SDL_Color{ 0, 255, 255, 0 });
 
     SDL_GL_Leave2DMode();
 }
